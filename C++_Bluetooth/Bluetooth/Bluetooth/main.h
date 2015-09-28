@@ -6,8 +6,14 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <vector>
 
+#include "Descriptor.h"
+#include "Characteristic.h"
+#include "Service.h"
+#include "Device.h"
 #include "Bluetooth.h"
 
 extern int notificationsReceived;
-//extern ofstream myFile;
+
+void ErrorDescription(HRESULT hr);

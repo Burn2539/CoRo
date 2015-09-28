@@ -59,22 +59,22 @@ int main(void)
 		cout << "\tIs Signed Writable = " << characteristic->IsSignedWritable << endl;
 		cout << "\tIs Writable = " << characteristic->IsWritable << endl;
 		cout << "\tIs Writable Without Response = " << characteristic->IsWritableWithoutResponse << endl;
-		cout << "\tService Handle = " << characteristic->ServiceHandle << endl << endl;
-	}
+		cout << "\tService Handle = " << characteristic->ServiceHandle << endl;
+	
 
-	/* Display the list of descriptors. */
-	PBTH_LE_GATT_DESCRIPTOR descriptor;
-	for (int iDescriptors = 0; iDescriptors < BLE::PSOC()->numDescriptors; iDescriptors++)
-	{
-		descriptor = &BLE::PSOC()->descriptorsBuffer[iDescriptors];
-		cout << "Descriptor " << iDescriptors << ":" << endl;
-		cout << "\tAttribute Handle = " << descriptor->AttributeHandle << endl;
-		cout << "\tCharacteristic Handle = " << descriptor->CharacteristicHandle << endl;
-		cout << "\tDescriptor Type = " << descriptor->DescriptorType << endl;
-		cout << "\tDescriptor UUID (short) = " << descriptor->DescriptorUuid.Value.ShortUuid << endl;
-		cout << "\tService Handle = " << descriptor->ServiceHandle << endl << endl;
+		/* Display the list of descriptors for each characteristic. */
+		PBTH_LE_GATT_DESCRIPTOR descriptor;
+		for (int iDescriptors = 0; iDescriptors < BLE::PSOC()->numDescriptors; iDescriptors++)
+		{
+			descriptor = &BLE::PSOC()->descriptorsBuffer[iDescriptors];
+			cout << "Descriptor " << iDescriptors << ":" << endl;
+			cout << "\tAttribute Handle = " << descriptor->AttributeHandle << endl;
+			cout << "\tCharacteristic Handle = " << descriptor->CharacteristicHandle << endl;
+			cout << "\tDescriptor Type = " << descriptor->DescriptorType << endl;
+			cout << "\tDescriptor UUID (short) = " << descriptor->DescriptorUuid.Value.ShortUuid << endl;
+			cout << "\tService Handle = " << descriptor->ServiceHandle << endl << endl;
+		}
 	}
-
 	/* Enable notifications on all characteristics. */
 	BOOL notificationEnabled = FALSE;
 	USHORT numNotifiedCharacteristics = 0;
@@ -116,10 +116,10 @@ int main(void)
 		}
 	}
 
-
+	/*
 	while (1)
 		Sleep(1000);
-
+	*/
 
 	/*
 	cout << "Acquiring data from the PSOC";
@@ -139,4 +139,39 @@ int main(void)
 	cout << endl;
 	system("pause");
 	
+	BLE::PSOC()->freeMemory();
+
+	return 0;
+}
+
+
+/*************************************************************************
+*
+* Function:		ErrorDescription()
+*
+* Description:	Print a message explaining the HRESULT error code.
+*
+* Notes:		https://msdn.microsoft.com/en-us/library/windows/desktop/ms687061(v=vs.85).aspx
+*
+* Parameters:	HRESULT error code.
+*
+* Returns:		None defined.
+*
+**************************************************************************/
+void BLE::ErrorDescription(HRESULT hr)
+{
+	if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
+		hr = HRESULT_CODE(hr);
+	TCHAR* szErrMsg;
+
+	if (FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)&szErrMsg, 0, NULL) != 0)
+	{
+		_tprintf(TEXT("%s"), szErrMsg);
+		LocalFree(szErrMsg);
+	}
+	else
+		_tprintf(TEXT("[Could not find a description for error # %#x.]\n"), hr);
 }

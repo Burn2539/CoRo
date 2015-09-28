@@ -1,5 +1,7 @@
 #pragma once
 
+#include "main.h"
+
 /* Librairies needed to use BLE on Windows. */
 #include <SDKDDKVer.h>
 #include <windows.h>
@@ -47,17 +49,17 @@ public:
 	/* Data */
 	struct sensors {
 		uint16_t sensor1;
-		//uint16_t sensor2;
-		//uint16_t sensor3;
-		//uint16_t sensor4;
-		//uint16_t sensor5;
+		uint16_t sensor2;
+		uint16_t sensor3;
+		uint16_t sensor4;
+		uint16_t sensor5;
 	};
 	std::vector<sensors> CapSense;
 
 
 	/***** Prototypes *****/
 	static BLE *PSOC();
-	void ErrorDescription(HRESULT hr);
+	void freeMemory();
 	void Connect(void);
 	void getGuid(const wchar_t *_uuid, GUID *_guid);
 	void getDeviceHandle(GUID *_guid, HANDLE *_handle);

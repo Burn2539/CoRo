@@ -31,6 +31,32 @@ BLE *BLE::PSOC()
 
 /*************************************************************************
 *
+* Function:		freeMemory()
+*
+* Description:	Deallocate all the buffers and close the connection
+*				handle.
+*
+* Notes:
+*
+* Parameters:	None.
+*
+* Returns:		None defined.
+*
+**************************************************************************/
+void BLE::freeMemory()
+{
+	cout << endl << "Freeing memory..." << endl;
+
+	free(servicesBuffer);
+	free(characteristicsBuffer);
+	free(notifiedCharacteristicsBuffer);
+	free(descriptorsBuffer);
+
+	CloseHandle(DeviceHandle);
+}
+
+/*************************************************************************
+*
 * Function:		NotificationReceived()
 *
 * Description:	Receives the new value sent from the BLE device.
@@ -50,74 +76,15 @@ void BLE::NotificationReceived(__in BTH_LE_GATT_EVENT_TYPE EventType, __in PVOID
 	uint16_t dataReceived_crc = 0;
 	PBLUETOOTH_GATT_VALUE_CHANGED_EVENT ValueChangedEventParameters = (PBLUETOOTH_GATT_VALUE_CHANGED_EVENT)EventOutParameter;
 
-	if (0 == ValueChangedEventParameters->CharacteristicValue->DataSize) {
-		
-	}
-
-	else {
-		uint32_t dataReceived = 0;
-		ULONG dataSize = ValueChangedEventParameters->CharacteristicValue->DataSize;
-
-		for (uint8_t i = 0; i < dataSize; i++) {
-			dataReceived = dataReceived << 8 | unsigned(ValueChangedEventParameters->CharacteristicValue->Data[i]);
-		}
-
-		//cout << hex << uppercase << setfill('0') << setw(2 * dataSize) << dataReceived;
-
-		dataReceived_message = dataReceived >> 16 & 0xFFFF;
-		dataReceived_crc = dataReceived & 0xFFFF;
-
-		//cout << "\t" << hex << uppercase << setfill('0') << setw(4) << dataReceived_message;
-		//cout << "\t" << hex << uppercase << setfill('0') << setw(4) << dataReceived_crc;
-
+	
 		if (verifyCRC(dataReceived_message, dataReceived_crc)) {
 			PSOC()->CapSense.push_back({ dataReceived_message });
-			
-			//cout << " \tCapSense Proximity=0x" << hex << uppercase << setfill('0') << setw(2 * sizeof(dataReceived_message)) << dataReceived_message;
-			//myFile << "Notification " << (notificationsReceived) << " = ";
-			//myFile << hex << uppercase << setfill('0') << setw(2 * sizeof(dataReceived_message)) << dataReceived_message << endl;
+
 		}
 		else {
 			PSOC()->CapSense.push_back({ NULL });
 
-			//cout << "\tERROR";
-			//myFile << "ERROR" << endl;
 		}
-
-		//cout << "\tCRC=0x" << hex << uppercase << setfill('0') << setw(2 * sizeof(dataReceived_crc)) << dataReceived_crc;
-	}
-}
-
-
-/*************************************************************************
-*
-* Function:		ErrorDescription()
-*
-* Description:	Print a message explaining the HRESULT error code.
-*
-* Notes:		https://msdn.microsoft.com/en-us/library/windows/desktop/ms687061(v=vs.85).aspx
-*
-* Parameters:	HRESULT error code.
-*
-* Returns:		None defined.
-*
-**************************************************************************/
-void BLE::ErrorDescription(HRESULT hr)
-{
-	if (FACILITY_WINDOWS == HRESULT_FACILITY(hr))
-		hr = HRESULT_CODE(hr);
-	TCHAR* szErrMsg;
-
-	if (FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-		NULL, hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)&szErrMsg, 0, NULL) != 0)
-	{
-		_tprintf(TEXT("%s"), szErrMsg);
-		LocalFree(szErrMsg);
-	}
-	else
-		_tprintf(TEXT("[Could not find a description for error # %#x.]\n"), hr);
 }
 
 
@@ -412,52 +379,61 @@ HRESULT BLE::getListCharacteristics(void)
 **************************************************************************/
 HRESULT BLE::getListDescriptors(void)
 {
-	/* Determine the size of the buffer required. */
-	USHORT descriptorBufferSize;
-	HRESULT hr = BluetoothGATTGetDescriptors(
-		DeviceHandle,
-		characteristicsBuffer,
-		0,
-		NULL,
-		&descriptorBufferSize,
-		BLUETOOTH_GATT_FLAG_NONE);
-
-	if (HRESULT_FROM_WIN32(ERROR_MORE_DATA) != hr) {
-		cout << "\tERROR while getting the size of the descriptors buffer: ";
-		ErrorDescription(hr);
-		return hr;
-	}
-
-	/* Allocate space for the buffer. */
-	if (descriptorBufferSize > 0) {
-		descriptorsBuffer = (PBTH_LE_GATT_DESCRIPTOR)
-			malloc(descriptorBufferSize	* sizeof(BTH_LE_GATT_DESCRIPTOR));
-
-		if (NULL == descriptorsBuffer) {
-			cout << "\tERROR while allocating space for the descriptors buffer." << endl;
-		}
-		else {
-			RtlZeroMemory(descriptorsBuffer, descriptorBufferSize);
-		}
-
-		/* Retrieve the list of descriptors. */
+	HRESULT hr;
+	USHORT descriptorBufferSizeCumul = 0;
+	for (int i = 0; i < numCharacteristics; i++)
+	{
+		/* Determine the size of the buffer required. */
+		USHORT descriptorBufferSize;
 		hr = BluetoothGATTGetDescriptors(
 			DeviceHandle,
-			characteristicsBuffer,
-			descriptorBufferSize,
-			descriptorsBuffer,
-			&numDescriptors,
+			&characteristicsBuffer[i],
+			0,
+			NULL,
+			&descriptorBufferSize,
 			BLUETOOTH_GATT_FLAG_NONE);
 
-		if (FAILED(hr)) {
-			cout << "\tERROR while getting the list of descriptors: ";
+		if (HRESULT_FROM_WIN32(ERROR_MORE_DATA) != hr) {
+			cout << "\tERROR while getting the size of the descriptors buffer: ";
 			ErrorDescription(hr);
 			return hr;
 		}
 
-		if (numDescriptors != descriptorBufferSize) {
-			cout << "\tWARNING - Mismatch between the size of the buffer and the number of characteristics." << endl;
+		descriptorBufferSizeCumul += descriptorBufferSize;
+
+		/* Allocate space for the buffer. */
+		if (descriptorBufferSize > 0) {
+			descriptorsBuffer = (PBTH_LE_GATT_DESCRIPTOR)
+				realloc(descriptorsBuffer, descriptorBufferSizeCumul * sizeof(BTH_LE_GATT_DESCRIPTOR));
+
+			if (NULL == descriptorsBuffer) {
+				cout << "\tERROR while allocating space for the descriptors buffer." << endl;
+			}
+			/*else {
+				RtlZeroMemory(descriptorsBuffer, descriptorBufferSize);
+			}*/
+
+			/* Retrieve the list of descriptors. */
+			hr = BluetoothGATTGetDescriptors(
+				DeviceHandle,
+				characteristicsBuffer,
+				descriptorBufferSize,
+				descriptorsBuffer,
+				&numDescriptors,
+				BLUETOOTH_GATT_FLAG_NONE);
+
+			if (FAILED(hr)) {
+				cout << "\tERROR while getting the list of descriptors: ";
+				ErrorDescription(hr);
+				return hr;
+			}
+
+			if (numDescriptors != descriptorBufferSize) {
+				cout << "\tWARNING - Mismatch between the size of the buffer and the number of characteristics." << endl;
+			}
 		}
+
+		delete &descriptorBufferSize;
 	}
 	
 	return hr;
@@ -807,10 +783,6 @@ void BLE::Connect(void)
 
 
 /*	
-	CloseHandle(hLEDevice);
-
-
-
 	if (GetLastError() != NO_ERROR &&
 		GetLastError() != ERROR_NO_MORE_ITEMS)
 	{
