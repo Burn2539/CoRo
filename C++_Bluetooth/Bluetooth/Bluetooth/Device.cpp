@@ -5,13 +5,17 @@ using namespace std;
 
 Device::Device(GUID _guid)
 {
-	Guid = _guid;
-	Handle = getHandle(Guid);
+	this->Guid = _guid;
+	this->Handle = getHandle(Guid);
 }
 
 
 Device::~Device()
 {
+	for (int i = 0; i < this->numServices; i++)
+		delete this->services[i];
+	CloseHandle(this->Handle);
+	cout << "Device has been deleted." << endl;
 }
 
 
@@ -43,14 +47,14 @@ HRESULT Device::retrieveListServices()
 
 	/* Determine the size of the buffer required. */
 	HRESULT hr = BluetoothGATTGetServices(
-		Handle,
+		this->Handle,
 		0,
 		NULL,
 		&serviceBufferSize,
 		BLUETOOTH_GATT_FLAG_NONE);
 
 	if (HRESULT_FROM_WIN32(ERROR_MORE_DATA) != hr) {
-		cout << "\tERROR while getting the size of the services buffer: ";
+		cout << "ERROR while getting the size of the services buffer: ";
 		ErrorDescription(hr);
 		return hr;
 	}
@@ -62,30 +66,29 @@ HRESULT Device::retrieveListServices()
 			malloc(sizeof(BTH_LE_GATT_SERVICE) * serviceBufferSize);
 
 		if (NULL == servicesBuffer) {
-			cout << "\tERROR while allocating space for the services buffer." << endl;
+			cout << "ERROR while allocating space for the services buffer." << endl;
 		}
 		else {
-			RtlZeroMemory(servicesBuffer,
-				sizeof(BTH_LE_GATT_SERVICE) * serviceBufferSize);
+			RtlZeroMemory(servicesBuffer, sizeof(BTH_LE_GATT_SERVICE) * serviceBufferSize);
 		}
 
 		/* Retrieve the list of services. */
 		hr = BluetoothGATTGetServices(
-			Handle,
+			this->Handle,
 			serviceBufferSize,
 			servicesBuffer,
-			&numServices,
+			&this->numServices,
 			BLUETOOTH_GATT_FLAG_NONE);
 
 		if (FAILED(hr)) {
-			cout << "\tERROR while getting the list of services: ";
+			cout << "ERROR while getting the list of services: ";
 			ErrorDescription(hr);
 			return hr;
 		}
 
 		/* Create the services. */
-		for (int i = 0; i < numServices; i++)
-			services.push_back( new Service( this, &servicesBuffer[i] ) );
+		for (int i = 0; i < this->numServices; i++)
+			this->services.push_back( new Service( this, &servicesBuffer[i] ) );
 
 		free(servicesBuffer);
 	}
@@ -96,7 +99,7 @@ HRESULT Device::retrieveListServices()
 
 /*************************************************************************
 *
-* Function:		getDeviceHandle()
+* Function:		getHandle()
 *
 * Description:	Get the device handle from its GUID.
 *
@@ -149,7 +152,7 @@ HANDLE Device::getHandle(GUID AGuid)
 				GENERIC_WRITE | GENERIC_READ,
 				FILE_SHARE_READ | FILE_SHARE_WRITE,
 				NULL,
-				OPEN_EXISTING,
+				CREATE_ALWAYS,
 				0,
 				NULL);
 

@@ -87,7 +87,6 @@ void BLE::NotificationReceived(__in BTH_LE_GATT_EVENT_TYPE EventType, __in PVOID
 		}
 }
 
-
 /*************************************************************************
 *
 * Function:		getGuid()

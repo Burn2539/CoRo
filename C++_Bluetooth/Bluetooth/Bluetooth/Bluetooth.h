@@ -22,7 +22,6 @@
 #include <fstream>
 #include <comdef.h>
 #include <tchar.h>
-#include <vector>
 
 
 class BLE {

@@ -1,6 +1,8 @@
 #pragma once
 #include "main.h"
 
+class Service;
+
 class Device
 {
 public:

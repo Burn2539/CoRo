@@ -1,7 +1,10 @@
 #pragma once
 #include "main.h"
 
-class Service : BTH_LE_GATT_SERVICE
+class Device;
+class Characteristic;
+
+class Service : public BTH_LE_GATT_SERVICE
 {
 public:
 	Service(Device *_device, PBTH_LE_GATT_SERVICE _service);

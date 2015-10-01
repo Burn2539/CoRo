@@ -5,12 +5,18 @@ using namespace std;
 
 Service::Service(Device *_device, PBTH_LE_GATT_SERVICE _service)
 {
-	parentDevice = _device;
+	this->parentDevice = _device;
+
+	this->AttributeHandle = _service->AttributeHandle;
+	this->ServiceUuid = _service->ServiceUuid;
 }
 
 
 Service::~Service()
 {
+	for (int i = 0; i < this->numCharacteristics; i++)
+		delete this->characteristics[i];
+	cout << "Service has been deleted." << endl;
 }
 
 
@@ -44,7 +50,7 @@ HRESULT Service::retrieveListCharacteristics()
 
 	/* Determine the size of the buffer required. */
 	HRESULT hr = BluetoothGATTGetCharacteristics(
-		parentDevice->Handle,
+		this->parentDevice->Handle,
 		this,
 		0,
 		NULL,
@@ -52,7 +58,7 @@ HRESULT Service::retrieveListCharacteristics()
 		BLUETOOTH_GATT_FLAG_NONE);
 
 	if (HRESULT_FROM_WIN32(ERROR_MORE_DATA) != hr) {
-		cout << "\tERROR while getting the size of the characteristics buffer: ";
+		cout << "ERROR while getting the size of the characteristics buffer: ";
 		ErrorDescription(hr);
 		return hr;
 	}
@@ -64,7 +70,7 @@ HRESULT Service::retrieveListCharacteristics()
 			malloc(characteristicBufferSize * sizeof(BTH_LE_GATT_CHARACTERISTIC));
 
 		if (NULL == characteristicsBuffer) {
-			cout << "\tERROR while allocating space for the characteristics buffer." << endl;
+			cout << "ERROR while allocating space for the characteristics buffer." << endl;
 		}
 		else {
 			RtlZeroMemory(characteristicsBuffer,
@@ -73,25 +79,25 @@ HRESULT Service::retrieveListCharacteristics()
 
 		/* Retrieve the list of characteristics. */
 		hr = BluetoothGATTGetCharacteristics(
-			parentDevice->Handle,
+			this->parentDevice->Handle,
 			this,
 			characteristicBufferSize,
 			characteristicsBuffer,
-			&numCharacteristics,
+			&this->numCharacteristics,
 			BLUETOOTH_GATT_FLAG_NONE);
 
 		if (FAILED(hr)) {
-			cout << "\tERROR while getting the list of characteristics: ";
+			cout << "ERROR while getting the list of characteristics: ";
 			ErrorDescription(hr);
 			return hr;
 		}
 
-		if (numCharacteristics != characteristicBufferSize)
-			cout << "\tWARNING - Mismatch between the size of the buffer and the number of characteristics." << endl;
+		if (this->numCharacteristics != characteristicBufferSize)
+			cout << "WARNING - Mismatch between the size of the buffer and the number of characteristics." << endl;
 
 		/* Create the characteristics. */
-		for (int i = 0; i < numCharacteristics; i++)
-			characteristics.push_back( new Characteristic( this, &characteristicsBuffer[i] ) );
+		for (int i = 0; i < this->numCharacteristics; i++)
+			this->characteristics.push_back( new Characteristic( this, &characteristicsBuffer[i] ) );
 
 		free(characteristicsBuffer);
 	}
